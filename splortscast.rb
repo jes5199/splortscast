@@ -25,7 +25,7 @@ $message_allocation_seconds = 12
 
 $score_frequency = 60
 
-$announce_freq = 10
+$announce_freq = 20
 $announce_thread = nil
 $game_thread = nil
 
