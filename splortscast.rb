@@ -15,6 +15,7 @@ $max_delay = 10
 $min_delay = 2
 
 GlobalEvents = {}
+$global_event_keys = []
 $last_global_announce = -1
 $last_global_announce_time = Time.now
 $season = nil
@@ -124,6 +125,7 @@ def refresh_global_events
       GlobalEvents.delete key
     end
   end
+  $global_event_keys = GlobalEvents.keys.shuffle
 end
 
 def message_wait_time
@@ -211,27 +213,23 @@ def announce_global_event
     announce_event_number = $last_global_announce + 1
     if announce_event_number >= GlobalEvents.keys.length
       announce_event_number = 0
+      $global_event_keys = GlobalEvents.keys.shuffle
     end
     $last_global_announce = announce_event_number
-    key = GlobalEvents.keys[announce_event_number]
+    key = $global_event_keys[announce_event_number]
+    return unless key
 
     if key =~ /........-....-....-....-............/
       key = "event"
     end
 
     voice = voice_for_global(key)
-    if announce_event_number < 0 || key.nil?
-      return announce_day
-    else
-      puts "#{key}: #{GlobalEvents[key][:msg]}"
-      msg = fix_pronounce(GlobalEvents[key][:msg])
-    end
+    puts "#{key}: #{GlobalEvents[key][:msg]}"
+    msg = fix_pronounce(GlobalEvents[key][:msg])
+
     start = Time.now
     $announce_thread = say voice, msg
     $last_global_announce_time = Time.now
-  end
-  Thread.new do
-    refresh_global_events
   end
 end
 
