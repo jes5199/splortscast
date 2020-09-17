@@ -219,13 +219,15 @@ def announce_global_event
     key = $global_event_keys[announce_event_number]
     return unless key
 
+    event = GlobalEvents[key][:msg]
+
     if key =~ /........-....-....-....-............/
       key = "event"
     end
 
     voice = voice_for_global(key)
-    puts "#{key}: #{GlobalEvents[key][:msg]}"
-    msg = fix_pronounce(GlobalEvents[key][:msg])
+    puts "#{key}: #{event}"
+    msg = fix_pronounce(event)
 
     start = Time.now
     $announce_thread = say voice, msg
