@@ -34,27 +34,50 @@ LastScoreAnnouncedAtByHome = Hash.new{ $invoked_at }
 LastMessageByGame = {}
 LastThreadByVoice = {}
 
-def refresh_global_events
-  global_events_json = Curl::Easy.perform("https://www.blaseball.com/database/globalEvents").body_str
-  global_events = JSON.parse(global_events_json)
-
-  global_events.each do |event|
-    id = event["id"]
-    GlobalEvents[id] = {msg: event["msg"], expire: event["expire"] && Time.parse(event["expire"])}
-  end
-
-  GlobalEvents.keys.each do |key|
-    if GlobalEvents[key][:expire] && GlobalEvents[key][:expire] < Time.now
-      GlobalEvents.delete key
-    end
-  end
-end
-
-def message_wait_time
-  if ($active_game_count > 0)
-    $message_allocation_seconds.to_f / $active_game_count
+def voice_for_home(team)
+  case team
+  when "Lovers"
+    "Ralph"
+  when "Moist Talkers"
+    "Vicki"
+  when "Tigers"
+    "Daniel"
+  when "Dale"
+    "Kate"
+  when "Flowers"
+    "Lee"
+  when /^[WM]ild [WM]ings$/
+    "Oliver"
+  when "Tacos"
+    "Karen"
+  when "Millennials"
+    "Junior"
+  when "Pies"
+    "Allison"
+  when "Crabs"
+    "Moira"
+  when "Jazz Hands"
+    "Veena"
+  when "Firefighters"
+    "Fred"
+  when "Spies"
+    "Tessa"
+  when "Sunbeams"
+    "Serena"
+  when "Garages"
+    "Tom"
+  when "Breath Mints"
+    "Agnes"
+  when "Shoe Thieves"
+    "Susan"
+  when "Magic"
+    "Victoria"
+  when "Steaks"
+    "Bruce"
+  when "Fridays"
+    "Ava"
   else
-    $message_allocation_seconds
+    "Boing"
   end
 end
 
@@ -86,6 +109,31 @@ def voice_for_global(key)
     "Whisper"
   end
 end
+
+def refresh_global_events
+  global_events_json = Curl::Easy.perform("https://www.blaseball.com/database/globalEvents").body_str
+  global_events = JSON.parse(global_events_json)
+
+  global_events.each do |event|
+    id = event["id"]
+    GlobalEvents[id] = {msg: event["msg"], expire: event["expire"] && Time.parse(event["expire"])}
+  end
+
+  GlobalEvents.keys.each do |key|
+    if GlobalEvents[key][:expire] && GlobalEvents[key][:expire] < Time.now
+      GlobalEvents.delete key
+    end
+  end
+end
+
+def message_wait_time
+  if ($active_game_count > 0)
+    $message_allocation_seconds.to_f / $active_game_count
+  else
+    $message_allocation_seconds
+  end
+end
+
 
 def random_blaseball
   val = rand
@@ -184,53 +232,6 @@ def announce_global_event
   end
   Thread.new do
     refresh_global_events
-  end
-end
-
-def voice_for_home(team)
-  case team
-  when "Lovers"
-    "Ralph"
-  when "Moist Talkers"
-    "Vicki"
-  when "Tigers"
-    "Daniel"
-  when "Dale"
-    "Kate"
-  when "Flowers"
-    "Lee"
-  when /^[WM]ild [WM]ings$/
-    "Oliver"
-  when "Tacos"
-    "Karen"
-  when "Millennials"
-    "Junior"
-  when "Pies"
-    "Allison"
-  when "Crabs"
-    "Moira"
-  when "Jazz Hands"
-    "Veena"
-  when "Firefighters"
-    "Fred"
-  when "Spies"
-    "Tessa"
-  when "Sunbeams"
-    "Serena"
-  when "Garages"
-    "Tom"
-  when "Breath Mints"
-    "Agnes"
-  when "Shoe Thieves"
-    "Susan"
-  when "Magic"
-    "Victoria"
-  when "Steaks"
-    "Bruce"
-  when "Fridays"
-    "Ava"
-  else
-    "Whisper"
   end
 end
 
