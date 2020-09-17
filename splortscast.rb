@@ -6,16 +6,19 @@ require 'time'
 require 'pp'
 require 'active_support'
 require 'open3'
-#require 'pry'
 
 $invoked_at = Time.now
+
+$say = "say" # add params here if needed
+
+$max_delay = 10
+$min_delay = 2
 
 GlobalEvents = {}
 $last_global_announce = -1
 $last_global_announce_time = Time.now
 $season = nil
 $day = nil
-$message_max_wait = 0.75
 
 $message_allocation_seconds = 12
 
@@ -29,7 +32,6 @@ $last_update_time = Time.now
 
 LastScoreAnnouncedAtByHome = Hash.new{ $invoked_at }
 LastMessageByGame = {}
-#LastInningByGame = {}
 LastThreadByVoice = {}
 
 def refresh_global_events
@@ -37,7 +39,6 @@ def refresh_global_events
   global_events = JSON.parse(global_events_json)
 
   global_events.each do |event|
-    #p event
     id = event["id"]
     GlobalEvents[id] = {msg: event["msg"], expire: event["expire"] && Time.parse(event["expire"])}
   end
@@ -79,6 +80,8 @@ def voice_for_global(key)
     'Deranged'
   when 'in_memoriam'
     'Pipe Organ'
+  when 'event'
+    'Boing'
   else
     "Whisper"
   end
@@ -124,11 +127,9 @@ def say(voice, msg)
   lastthread = LastThreadByVoice[voice]
   thread = Thread.new do
     if lastthread && lastthread.status
-      #puts "(#{voice} waiting)"
       lastthread.join
     end
-    #puts "#{voice}: #{msg}"
-    system( "say -a 74 -v #{voice.inspect} #{msg.inspect}" )
+    system( "#{$say} -v #{voice.inspect} #{msg.inspect}" )
   end
   LastThreadByVoice[voice] = thread
   return thread
@@ -149,9 +150,6 @@ def announce_day
     end
     $game_thread = $announce_thread = say voice, msg
     $last_global_announce_time = Time.now
-    #while Time.now - start < $message_max_wait && $announce_thread.status
-    #  sleep 0.1
-    #end
   end
 end
 
@@ -163,11 +161,16 @@ def announce_global_event
     $last_global_announce_time = Time.now
 
     announce_event_number = $last_global_announce + 1
-    if announce_event_number > GlobalEvents.keys.length
+    if announce_event_number >= GlobalEvents.keys.length
       announce_event_number = 0
     end
     $last_global_announce = announce_event_number
     key = GlobalEvents.keys[announce_event_number]
+
+    if key =~ /........-....-....-....-............/
+      key = "event"
+    end
+
     voice = voice_for_global(key)
     if announce_event_number < 0 || key.nil?
       return announce_day
@@ -178,10 +181,6 @@ def announce_global_event
     start = Time.now
     $announce_thread = say voice, msg
     $last_global_announce_time = Time.now
-
-    #while Time.now - start < $message_max_wait && $announce_thread.status
-    #  sleep 0.1
-    #end
   end
   Thread.new do
     refresh_global_events
@@ -245,7 +244,6 @@ def pronounce_score(score)
 end
 
 def handle_game(game)
-  #pp game
   home = game["homeTeamNickname"]
   away = game["awayTeamNickname"]
   voice = voice_for_home(home)
@@ -253,8 +251,6 @@ def handle_game(game)
   inning = ActiveSupport::Inflector.ordinalize(game["inning"] + 1)
   at_bat = game["homeBatterName"] || game["awayBatterName"]
   last_update = game["lastUpdate"]
-
-  #p game["basesOccupied"]
 
   score_messsage = "#{home} #{pronounce_score(game["homeScore"])} #{away} #{pronounce_score(game["awayScore"])}, "
 
@@ -268,6 +264,16 @@ def handle_game(game)
     #msg += "#{top_or_bottom} of the #{inning}, "
     #msg += "#{game["atBatBalls"]} balls #{game["atBatStrikes"]} strikes, "
     msg += last_update + " "
+
+    if msg =~ /^Top of/ || msg =~ /^Bottom of/
+      pitcher = !game["topOfInning"] ? game["awayPitcherName"] : game["homePitcherName"]
+      pitcherTeam = !game["topOfInning"] ? game["awayTeamNickname"] : game["homeTeamName"]
+      msg += "#{pitcher} is pitching for the #{pitcherTeam}. "
+    end
+
+    if msg =~ /\bscores\b/ || msg =~ /\bhome run\b/
+      msg += score_messsage
+    end
   end
 
   if (msg == LastMessageByGame[game["id"]])
@@ -281,18 +287,17 @@ def handle_game(game)
   action = Proc.new do
     active = Time.now
     delayed = active - queued
-    #puts "delayed #{delayed}"
-    if (delayed > 10)
+    if (delayed > $max_delay)
       $message_allocation_seconds *= 0.99
-      #puts "faster #{$message_allocation_seconds} / #{$active_game_count}"
-    elsif (delayed < 2)
+    elsif (delayed < $min_delay)
       $message_allocation_seconds += 0.1
-      #puts "slower #{$message_allocation_seconds} / #{$active_game_count}"
     end
 
     if $active_game_count == 1
+      # last game gets every message
       say(voice, fix_pronounce(msg))
     else
+      # usually these are too chatty
       case msg
       when /^Ball. \d-\d\s*$/, /^Foul Ball. \d-\d\s*$/, /^Strike, looking\. \d-\d\s*$/, /^Strike, swinging\. \d-\d\s*$/
         nil
@@ -302,30 +307,10 @@ def handle_game(game)
         say(voice, fix_pronounce(msg))
       end
     end&.join
-
-    #if delayed < 30 && !game["gameComplete"]
-    if !game["gameComplete"]
-      if (!LastScoreAnnouncedAtByHome[home] || Time.now - LastScoreAnnouncedAtByHome[home] > $score_frequency + rand * $score_frequency)
-        LastScoreAnnouncedAtByHome[home] = Time.now
-        if game["inning"] > 0
-          say(voice, score_messsage).join
-        end
-      end
-
-      if msg =~ /^Top of/ || msg =~ /^Bottom of/ and $active_game_count == 1
-        #inning_half = "#{top_or_bottom} of the #{inning}"
-        #LastInningByGame[game["id"]] = inning_half
-        pitcher = !game["topOfInning"] ? game["awayPitcherName"] : game["homePitcherName"]
-        pitcherTeam = !game["topOfInning"] ? game["awayTeamNickname"] : game["homeTeamName"]
-        say(voice, "#{pitcher} is pitching for the #{pitcherTeam}. ").join
-      end
-    end
   end
 
   wrapped_action = Proc.new do
-    #p :wrapped
     st = Time.now
-    #action[]
     thr = Thread.new(&action)
     while Time.now - st < message_wait_time && thr.status
       sleep 0.05
@@ -342,16 +327,12 @@ def handle_game(game)
   else
     $game_thread = Thread.new(&wrapped_action)
   end
-  #while Time.now - start < $message_max_wait && thread.status
-  #  sleep 0.1
-  #end
 end
 
 def handle_event_message(message)
   json = JSON.parse( message.sub(/^data: /, "") ) rescue nil
   return unless json
   puts
-  #puts "updated after #{Time.now - $last_update_time} seconds"
   $last_update_time = Time.now
   if (json["value"]["games"]["sim"]["day"] rescue nil)
     if $day != json["value"]["games"]["sim"]["day"] + 1
@@ -380,51 +361,10 @@ rescue
   return ""
 end
 
-def event_stream_curl
-  curl = Curl::Easy.new("https://www.blaseball.com/events/streamData")
-  curl.timeout = 120
-  curl.ignore_content_length = true
-
-  body = ""
-  curl.on_body do |bod|
-    body << bod
-    begin
-      body = handle_event_stream(body)
-    rescue => e
-      p e
-    end
-    p bod.size
-    bod.size
-  end
-
-  curl.on_debug do |deb, um|
-    p :debug
-    p [deb, um]
-  end
-
-  curl.on_complete do |uh|
-    p :finish
-    p uh
-    #binding.pry
-  end
-
-  curl.on_failure do |hmm|
-    p :failure
-    p hmm
-  end
-
-  curl.on_success do |hmm|
-    p :success
-  end
-
-  return curl
-end
-
 loop do
   refresh_global_events
   http = EM::HttpRequest.new("https://www.blaseball.com/events/streamData", :keepalive => true, :connect_timeout => 5, :inactivity_timeout => 10, tls: {verify_peer: true})
   stream = nil
-  #http.errback { stream = nil }
   EventMachine.run do
     timer = EventMachine::PeriodicTimer.new(2) do
       announce_global_event
@@ -437,18 +377,13 @@ loop do
     timer = EventMachine::PeriodicTimer.new(1) do
       if stream && !stream.finished?
         nil
-        #binding.pry
       else
         stream = http.get({'accept' => 'application/json'})
-        #binding.pry
-        #puts "reconnecting"
         body = ""
         stream.errback do
           stream = nil
         end
         stream.stream do |data|
-          #print "."
-          #puts data
           body << data
           body = handle_event_stream(body)
         end
