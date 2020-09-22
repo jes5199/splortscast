@@ -139,7 +139,9 @@ end
 
 def random_blaseball
   val = rand
-  if val < 0.01
+  if val < 0.001
+    return "baseball with an L."
+  elsif val < 0.01
     return "baseball"
   elsif val < 0.1
     return "blaseball"
