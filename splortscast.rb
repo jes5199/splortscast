@@ -139,7 +139,9 @@ end
 
 def random_blaseball
   val = rand
-  if val < 0.1
+  if val < 0.01
+    return "baseball"
+  elsif val < 0.1
     return "blaseball"
   elsif val < 0.2
     return "blaisball"
@@ -149,12 +151,16 @@ def random_blaseball
     return "blassball"
   elsif val < 0.5
     return "blasball"
-  elsif val < 0.7
-    return "blais ball"
   elsif val < 0.6
     return "blaiseball"
   elsif val < 0.7
+    return "blais ball"
+  elsif val < 0.8
     return "blayzball"
+  elsif val < 0.85
+    return "blessball"
+  elsif val < 0.9
+    return "placeball"
   else
     return "blazeball"
   end
