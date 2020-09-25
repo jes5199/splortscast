@@ -30,6 +30,7 @@ $announce_thread = nil
 $game_thread = nil
 
 $last_update_time = Time.now
+$quiet = false
 
 LastScoreAnnouncedAtByHome = Hash.new{ $invoked_at }
 LastMessageByGame = {}
@@ -183,15 +184,20 @@ def fix_pronounce(message)
 end
 
 def say(voice, msg)
+  return LastThreadByVoice[voice] || Thread.new{} if $quiet
   lastthread = LastThreadByVoice[voice]
-  thread = Thread.new do
+  LastThreadByVoice[voice] = Thread.new do
     if lastthread && lastthread.status
       lastthread.join
     end
     system( "#{$say} -v #{voice.inspect} #{msg.inspect}" )
   end
-  LastThreadByVoice[voice] = thread
-  return thread
+end
+
+def wait_for_silence
+  LastThreadByVoice.each do |k, thread|
+    thread.join
+  end
 end
 
 def announce_day
@@ -207,6 +213,8 @@ def announce_day
     if $game_thread && $game_thread.status
       $game_thread.join
     end
+    wait_for_silence
+
     $game_thread = $announce_thread = say voice, msg
     $last_global_announce_time = Time.now
   end
@@ -349,7 +357,7 @@ def handle_event_message(message)
       $day = json["value"]["games"]["sim"]["day"] + 1
     end
   end
-  if (json["value"]["games"]["sim"]["season"] rescue nil)
+  announce_day_thread = if (json["value"]["games"]["sim"]["season"] rescue nil)
     if $season != json["value"]["games"]["sim"]["season"] + 1
       $season = json["value"]["games"]["sim"]["season"] + 1
       announce_day
@@ -357,8 +365,11 @@ def handle_event_message(message)
   end
   games = ((json["value"]["games"]["schedule"] rescue nil) || [])
   $active_game_count = games.count { |game| !game["gameComplete"] }
-  games.each do |game|
-    handle_game(game)
+  Thread.new do
+    announce_day_thread.join if announce_day_thread
+    games.each do |game|
+      handle_game(game)
+    end
   end
 end
 
@@ -376,6 +387,14 @@ loop do
   http = EM::HttpRequest.new("https://www.blaseball.com/events/streamData", :keepalive => true, :connect_timeout => 5, :inactivity_timeout => 10, tls: {verify_peer: true})
   stream = nil
   EventMachine.run do
+    timer = EventMachine::PeriodicTimer.new(5) do
+      if Time.now.min == 55
+        $quiet = true
+        wait_for_silence
+        exit
+      end
+    end
+
     timer = EventMachine::PeriodicTimer.new(2) do
       announce_global_event
     end
