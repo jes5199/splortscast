@@ -387,7 +387,7 @@ loop do
   http = EM::HttpRequest.new("https://www.blaseball.com/events/streamData", :keepalive => true, :connect_timeout => 5, :inactivity_timeout => 10, tls: {verify_peer: true})
   stream = nil
   EventMachine.run do
-    timer = EventMachine::PeriodicTimer.new(5) do
+    timer = EventMachine::PeriodicTimer.new(60) do
       if Time.now.min == 55
         $quiet = true
         wait_for_silence
