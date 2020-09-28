@@ -202,14 +202,15 @@ end
 
 def announce_day
   Thread.new do
-    if $season <= 8
+    is_sunday = Time.now.getlocal('-07:00').sunday?
+    if $season <= 8 || is_sunday
       msg = "Season #{$season} Finale"
       puts "=== #{msg} ==="
       #say "Whisper", "Welcome to the Siesta"
       $quiet = true
       Thread.new do
         sleep 0.1
-        puts File.read("siesta.txt")
+        puts File.read(is_sunday ? "slabbath.txt" : "siesta.txt")
       end
       next
     end
@@ -363,7 +364,7 @@ end
 def handle_event_message(message)
   json = JSON.parse( message.sub(/^data: /, "") ) rescue nil
   return unless json
-  puts
+  puts unless $quiet
   $last_update_time = Time.now
   if (json["value"]["games"]["sim"]["day"] rescue nil)
     if $day != json["value"]["games"]["sim"]["day"] + 1
