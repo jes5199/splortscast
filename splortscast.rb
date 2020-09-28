@@ -202,6 +202,18 @@ end
 
 def announce_day
   Thread.new do
+    if $season <= 8
+      msg = "Season #{$season} Finale"
+      puts "=== #{msg} ==="
+      #say "Whisper", "Welcome to the Siesta"
+      $quiet = true
+      Thread.new do
+        sleep 0.1
+        puts File.read("siesta.txt")
+      end
+      next
+    end
+    $quiet = false
     voice = "Zarvox"
     msg = "Season #{$season} Day #{$day}"
     puts "=== #{msg} ==="
@@ -221,6 +233,7 @@ def announce_day
 end
 
 def announce_global_event
+  return if $quiet
   return if Time.now - $last_global_announce_time < $announce_freq + $announce_freq * rand
   return if $announce_thread && $announce_thread.status
 
