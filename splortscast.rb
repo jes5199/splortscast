@@ -99,6 +99,8 @@ def voice_for_global(key)
     'Trinoids'
   when 'current_labour'
     'Good News'
+  when 'eat_the_rich'
+    'Good News'
   when 'SHELLING'
     'Bells'
   when 'peanuts_are_everywhere'
@@ -180,6 +182,8 @@ def fix_pronounce(message)
     .gsub(/\s-Infinity\b/, " negative Infinity")
     .gsub(/\bSpies\b/i, "spies")
     .gsub(/(\d)-(\d)/, "\\1 and \\2")
+    .gsub(/\bStu\b/, "Stew")
+    .gsub(/\b99%-er\b/i, "99 percenter")
     .gsub(/\b0(\s)/, "Oh\\1")
 end
 
