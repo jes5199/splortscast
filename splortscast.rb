@@ -101,6 +101,8 @@ def voice_for_global(key)
     'Good News'
   when 'eat_the_rich'
     'Good News'
+  when 'WHERE_THEY_GO'
+    'Cellos'
   when 'SHELLING'
     'Bells'
   when 'peanuts_are_everywhere'
