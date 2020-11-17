@@ -78,7 +78,44 @@ def voice_for_home(team)
     "Bruce"
   when "Fridays"
     "Ava"
+  when "Lift"
+    "Serena"
+  when "Atlético", "Latte"
+    "Veena"
+  when "Cold Brew", "Brew"
+    "Alex"
+  when "Cream & Sugar", "Sugar"
+    "Vicki"
+  when "Royal PoS"
+    "Moira"
+  when "Data Witches", "Witches"
+    "Agnes"
+  when "Milk Proxy", "Proxy"
+    "Victoria"
+  when "FWXBC"
+    "Tom"
+  when "Macchiato"
+    "Ava"
+  when "de Calf", "Decaf"
+    "Susan"
+  when "Light & Sweet"
+    "Ralph"
+  when "Americano"
+    "Kate"
+  when "Heavy", "Heavy FC"
+    "Oliver"
+  when "BC Noir"
+    "Karen"
+  when "Xpresso"
+    "Bruce"
+  when "Game Band"
+    "Allison"
+  when "Artists"
+    "Daniel"
+  when "Hall Stars"
+    "Whisper"
   else
+    puts "*** default announcer for #{team} ***"
     "Boing"
   end
 end
@@ -179,6 +216,10 @@ def fix_pronounce(message)
     .gsub(/McBlase/i, "McBlaze")
     .gsub(/\bII\b/i, "the second")
     .gsub(/\bIII\b/i, "the third")
+    .gsub(/\bIIII\b/i, "the fourth")
+    .gsub(/\bIV\b/i, "the fourth")
+    .gsub(/\bPoS\b/, "P.o.S.")
+    .gsub(/\bXpresso\b/, "expresso")
     .gsub(/\bWHO\b/, "Who")
     .gsub(/\bStu\b/, "Stew")
     .gsub(/\s-Infinity\b/, " negative Infinity")
